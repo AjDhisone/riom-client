@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import { Plus, Eye, ShoppingCart, Calendar, Filter, X, Package, User, Search } from 'lucide-react'
 
 const defaultCustomer = () => ({
   name: '',
@@ -13,13 +14,6 @@ const createInitialOrderForm = () => ({
   items: [{ skuId: '', quantity: 1 }],
   tax: '',
 })
-
-const statusOptions = [
-  { value: '', label: 'All Status' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'cancelled', label: 'Cancelled' },
-]
 
 function Orders() {
   const { loading: authLoading } = useAuth()
@@ -34,7 +28,6 @@ function Orders() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalOrders, setTotalOrders] = useState(0)
-  const [statusFilter, setStatusFilter] = useState('')
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -45,6 +38,13 @@ function Orders() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState(null)
+
+  // Search and filter states
+  const [searchQuery, setSearchQuery] = useState('')
+  const [minItems, setMinItems] = useState('')
+  const [maxItems, setMaxItems] = useState('')
+  const [minTotal, setMinTotal] = useState('')
+  const [maxTotal, setMaxTotal] = useState('')
 
   const currencyFormatter = useMemo(() => {
     try {
@@ -57,11 +57,41 @@ function Orders() {
     }
   }, [currency])
 
+  // Filter orders based on search and filter criteria
+  const filteredOrders = useMemo(() => {
+    return orders.filter(order => {
+      // Search by order number
+      if (searchQuery && !order.orderNumber?.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false
+      }
+
+      // Filter by items count
+      const itemsCount = order.items?.length || 0
+      if (minItems && itemsCount < parseInt(minItems)) {
+        return false
+      }
+      if (maxItems && itemsCount > parseInt(maxItems)) {
+        return false
+      }
+
+      // Filter by total
+      const total = order.total || 0
+      if (minTotal && total < parseFloat(minTotal)) {
+        return false
+      }
+      if (maxTotal && total > parseFloat(maxTotal)) {
+        return false
+      }
+
+      return true
+    })
+  }, [orders, searchQuery, minItems, maxItems, minTotal, maxTotal])
+
   useEffect(() => {
     if (!authLoading) {
       fetchOrders()
     }
-  }, [authLoading, page, statusFilter, fromDate, toDate])
+  }, [authLoading, page, fromDate, toDate])
 
   useEffect(() => {
     if (!authLoading) {
@@ -82,11 +112,11 @@ function Orders() {
       setSkus(skuList)
 
       const allProducts = Array.isArray(productPayload?.products) ? productPayload.products : []
-      
+
       // Deduplicate products by name (case-insensitive)
       const uniqueProducts = []
       const seenNames = new Set()
-      
+
       allProducts.forEach((product) => {
         const normalizedName = product.name.toLowerCase().trim()
         if (!seenNames.has(normalizedName)) {
@@ -94,7 +124,7 @@ function Orders() {
           uniqueProducts.push(product)
         }
       })
-      
+
       setProducts(uniqueProducts)
 
       if (settingsPayload?.settings?.currency) {
@@ -115,9 +145,6 @@ function Orders() {
         limit: '10',
       })
 
-      if (statusFilter) {
-        params.append('status', statusFilter)
-      }
       if (fromDate) {
         params.append('from', fromDate)
       }
@@ -347,35 +374,86 @@ function Orders() {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
-          <p className="text-gray-600 mt-1">Track and manage orders</p>
+          <h1 className="text-3xl font-bold text-slate-900">Orders</h1>
+          <p className="text-slate-500 mt-1">Track and manage orders</p>
         </div>
-        <button onClick={openModal} className="btn-primary">
-          + New Order
+        <button onClick={openModal} className="btn-primary flex items-center gap-2">
+          <Plus className="w-5 h-5" />
+          New Order
         </button>
       </div>
 
       <div className="card">
+        {/* Search Bar */}
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by Order ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input-field pl-12"
+            />
+          </div>
+        </div>
+
+        {/* Filters Row */}
         <div className="mb-4 flex flex-wrap gap-4 items-end">
-          <select
-            value={statusFilter}
-            onChange={(event) => {
-              setStatusFilter(event.target.value)
-              setPage(1)
-            }}
-            className="input-field w-48"
-          >
-            {statusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">From</label>
+            <label className="block text-xs text-slate-500 mb-1">Items (min - max)</label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                placeholder="Min"
+                value={minItems}
+                onChange={(e) => setMinItems(e.target.value)}
+                className="input-field w-20"
+                min="0"
+              />
+              <input
+                type="number"
+                placeholder="Max"
+                value={maxItems}
+                onChange={(e) => setMaxItems(e.target.value)}
+                className="input-field w-20"
+                min="0"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">Total Amount (min - max)</label>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                placeholder="Min"
+                value={minTotal}
+                onChange={(e) => setMinTotal(e.target.value)}
+                className="input-field w-24"
+                min="0"
+                step="0.01"
+              />
+              <input
+                type="number"
+                placeholder="Max"
+                value={maxTotal}
+                onChange={(e) => setMaxTotal(e.target.value)}
+                className="input-field w-24"
+                min="0"
+                step="0.01"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Date Range */}
+        <div className="mb-4 flex flex-wrap gap-4 items-end">
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">From Date</label>
             <input
               type="date"
               value={fromDate}
@@ -387,7 +465,7 @@ function Orders() {
             />
           </div>
           <div>
-            <label className="block text-xs text-gray-500 mb-1">To</label>
+            <label className="block text-xs text-slate-500 mb-1">To Date</label>
             <input
               type="date"
               value={toDate}
@@ -398,20 +476,33 @@ function Orders() {
               className="input-field"
             />
           </div>
-          {(statusFilter || fromDate || toDate) && (
+
+          {(fromDate || toDate || searchQuery || minItems || maxItems || minTotal || maxTotal) && (
             <button
               onClick={() => {
-                setStatusFilter('')
                 setFromDate('')
                 setToDate('')
+                setSearchQuery('')
+                setMinItems('')
+                setMaxItems('')
+                setMinTotal('')
+                setMaxTotal('')
                 setPage(1)
               }}
-              className="btn-secondary"
+              className="btn-secondary flex items-center gap-2"
             >
-              Clear Filters
+              <X className="w-4 h-4" />
+              Clear All
             </button>
           )}
         </div>
+
+        {/* Results count */}
+        {!loading && (
+          <div className="mb-4 text-sm text-slate-500">
+            Showing {filteredOrders.length} of {totalOrders} orders
+          </div>
+        )}
 
         {errorMessage && (
           <div className="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-700">
@@ -426,8 +517,10 @@ function Orders() {
         )}
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-200 border-t-indigo-600 mb-4"></div>
+            <p className="text-slate-600 font-medium">Loading your orders...</p>
+            <p className="text-slate-400 text-sm mt-1">Just a moment while we fetch the latest data</p>
           </div>
         ) : (
           <>
@@ -450,23 +543,20 @@ function Orders() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Total
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {orders.length === 0 ? (
+                  {filteredOrders.length === 0 ? (
                     <tr>
                       <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
-                        No orders found. Click "New Order" to create one.
+                        No orders found matching your filters.
                       </td>
                     </tr>
                   ) : (
-                    orders.map((order, index) => (
+                    filteredOrders.map((order, index) => (
                       <tr key={order._id || order.id || order.orderNumber || `order-${index}`}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {order.orderNumber || '—'}
@@ -482,19 +572,6 @@ function Orders() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {formatCurrency(order.total)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span
-                            className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              order.status === 'completed'
-                                ? 'bg-green-100 text-green-800'
-                                : order.status === 'pending'
-                                  ? 'bg-yellow-100 text-yellow-800'
-                                  : 'bg-gray-100 text-gray-700'
-                            }`}
-                          >
-                            {order.status || 'Unknown'}
-                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                           <button
@@ -740,8 +817,9 @@ function Orders() {
             )}
 
             {detailLoading ? (
-              <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-200 border-t-indigo-600 mb-3"></div>
+                <p className="text-slate-500 text-sm">Fetching order details...</p>
               </div>
             ) : selectedOrder ? (
               <div className="space-y-6">

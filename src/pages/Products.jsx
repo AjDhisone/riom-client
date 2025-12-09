@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import { Plus, Search, X, Edit3, Archive, Package, ChevronLeft, ChevronRight, Upload, FileSpreadsheet, Download, CheckCircle, AlertCircle } from 'lucide-react'
 
 function Products() {
   const [products, setProducts] = useState([])
@@ -18,6 +19,15 @@ function Products() {
   const { user, loading: authLoading } = useAuth()
   const isAdmin = user?.role === 'admin'
   const canManageProducts = user?.role === 'admin' || user?.role === 'manager'
+
+  // Bulk import state
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importFile, setImportFile] = useState(null)
+  const [importLoading, setImportLoading] = useState(false)
+  const [importResult, setImportResult] = useState(null)
+  const [importError, setImportError] = useState('')
+  const fileInputRef = useRef(null)
+
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -163,7 +173,7 @@ function Products() {
       if (categoryFilter) {
         params.append('category', categoryFilter)
       }
-      
+
       const payload = (await api.get(`/products?${params}`)) || {}
       const items = Array.isArray(payload.products) ? payload.products : []
       setProducts(items)
@@ -294,12 +304,12 @@ function Products() {
         }
 
         payload.initialStock = initialStockValue
-        
+
         // Include attributes if provided
         if (formData.attributes && typeof formData.attributes === 'object') {
           payload.attributes = formData.attributes
         }
-        
+
         const result = await api.post('/products', payload)
         const createdProduct = result?.product
         if (createdProduct) {
@@ -321,7 +331,7 @@ function Products() {
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to archive this product?')) return
-    
+
     try {
       // Soft delete - archive the product
       await api.delete(`/products/${id}`)
@@ -333,17 +343,107 @@ function Products() {
     }
   }
 
+  // Bulk Import Handlers
+  const openImportModal = () => {
+    setShowImportModal(true)
+    setImportFile(null)
+    setImportResult(null)
+    setImportError('')
+  }
+
+  const closeImportModal = () => {
+    setShowImportModal(false)
+    setImportFile(null)
+    setImportResult(null)
+    setImportError('')
+  }
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (!file.name.endsWith('.csv')) {
+        setImportError('Please select a CSV file')
+        return
+      }
+      setImportFile(file)
+      setImportError('')
+      setImportResult(null)
+    }
+  }
+
+  const handleImportSubmit = async () => {
+    if (!importFile) {
+      setImportError('Please select a file first')
+      return
+    }
+
+    setImportLoading(true)
+    setImportError('')
+    setImportResult(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', importFile)
+
+      const response = await api.post('/products/import', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+
+      setImportResult(response)
+      await fetchProducts()
+      await fetchCategories()
+    } catch (error) {
+      console.error('Import error:', error)
+      const errorData = error.response?.data
+      if (errorData?.error?.details && Array.isArray(errorData.error.details)) {
+        setImportError(errorData.error.details.join('\n'))
+      } else {
+        setImportError(errorData?.message || 'Failed to import products')
+      }
+    } finally {
+      setImportLoading(false)
+    }
+  }
+
+  const downloadSampleCSV = () => {
+    const sampleCSV = `name,category,basePrice,description,minStock,initialStock
+Blue T-Shirt,Clothing,29.99,Cotton t-shirt in blue,10,100
+Wireless Mouse,Electronics,49.99,Ergonomic wireless mouse,5,50
+Leather Wallet,Accessories,39.99,Genuine leather wallet,15,75
+Coffee Mug,Kitchen,12.99,Ceramic coffee mug,20,200
+Running Shoes,Footwear,89.99,Lightweight running shoes,8,60`
+
+    const blob = new Blob([sampleCSV], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'product_import_template.csv'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Products</h1>
-          <p className="text-gray-600 mt-1">Manage your product catalog</p>
+          <h1 className="text-3xl font-bold text-slate-900">Products</h1>
+          <p className="text-slate-500 mt-1">Manage your product catalog</p>
         </div>
         {canManageProducts && (
-          <button onClick={openAddModal} className="btn-primary">
-            + Add Product
-          </button>
+          <div className="flex gap-3">
+            <button onClick={openImportModal} className="btn-secondary flex items-center gap-2">
+              <Upload className="w-5 h-5" />
+              Import CSV
+            </button>
+            <button onClick={openAddModal} className="btn-primary flex items-center gap-2">
+              <Plus className="w-5 h-5" />
+              Add Product
+            </button>
+          </div>
         )}
       </div>
 
@@ -401,8 +501,10 @@ function Products() {
         )}
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-200 border-t-indigo-600 mb-4"></div>
+            <p className="text-slate-600 font-medium">Loading products...</p>
+            <p className="text-slate-400 text-sm mt-1">Organizing your catalog</p>
           </div>
         ) : (
           <>
@@ -459,11 +561,10 @@ function Products() {
                           <div className="text-sm text-gray-900">{product.minStock ?? 0}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            product.isActive === false
-                              ? 'bg-gray-200 text-gray-700'
-                              : 'bg-green-100 text-green-800'
-                          }`}>
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${product.isActive === false
+                            ? 'bg-gray-200 text-gray-700'
+                            : 'bg-green-100 text-green-800'
+                            }`}>
                             {product.isActive === false ? 'Archived' : 'Active'}
                           </span>
                         </td>
@@ -673,6 +774,188 @@ function Products() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold flex items-center gap-2">
+                <FileSpreadsheet className="w-6 h-6 text-indigo-600" />
+                Import Products from CSV
+              </h2>
+              <button onClick={closeImportModal} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Instructions */}
+            <div className="mb-6 p-4 bg-indigo-50 rounded-lg">
+              <h3 className="font-semibold text-indigo-900 mb-2">CSV Format Instructions</h3>
+              <p className="text-sm text-indigo-800 mb-3">
+                Your CSV file should have the following columns:
+              </p>
+              <div className="overflow-x-auto">
+                <table className="text-sm w-full">
+                  <thead>
+                    <tr className="text-left border-b border-indigo-200">
+                      <th className="py-1 pr-4 text-indigo-900">Column</th>
+                      <th className="py-1 pr-4 text-indigo-900">Required</th>
+                      <th className="py-1 text-indigo-900">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-indigo-800">
+                    <tr><td className="py-1 pr-4 font-mono">name</td><td className="pr-4">✓ Yes</td><td>Product name</td></tr>
+                    <tr><td className="py-1 pr-4 font-mono">category</td><td className="pr-4">✓ Yes</td><td>Product category</td></tr>
+                    <tr><td className="py-1 pr-4 font-mono">basePrice</td><td className="pr-4">✓ Yes</td><td>Price (number only, no currency symbol)</td></tr>
+                    <tr><td className="py-1 pr-4 font-mono">description</td><td className="pr-4">Optional</td><td>Product description</td></tr>
+                    <tr><td className="py-1 pr-4 font-mono">minStock</td><td className="pr-4">Optional</td><td>Minimum stock threshold (default: 0)</td></tr>
+                    <tr><td className="py-1 pr-4 font-mono">initialStock</td><td className="pr-4">Optional</td><td>Starting inventory (default: 0)</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Google Sheets / Excel Instructions */}
+            <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-green-50 rounded-lg">
+                <h4 className="font-semibold text-green-900 mb-2 flex items-center gap-2">
+                  <FileSpreadsheet className="w-4 h-4" />
+                  From Google Sheets
+                </h4>
+                <ol className="text-sm text-green-800 list-decimal list-inside space-y-1">
+                  <li>Add headers in Row 1</li>
+                  <li>Fill product data from Row 2</li>
+                  <li>File → Download → CSV (.csv)</li>
+                  <li>Upload the file below</li>
+                </ol>
+              </div>
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                  <FileSpreadsheet className="w-4 h-4" />
+                  From Excel
+                </h4>
+                <ol className="text-sm text-blue-800 list-decimal list-inside space-y-1">
+                  <li>Add headers in Row 1</li>
+                  <li>Fill product data from Row 2</li>
+                  <li>File → Save As → CSV</li>
+                  <li>Upload the file below</li>
+                </ol>
+              </div>
+            </div>
+
+            {/* Download Template */}
+            <div className="mb-6">
+              <button
+                onClick={downloadSampleCSV}
+                className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium"
+              >
+                <Download className="w-5 h-5" />
+                Download Sample CSV Template
+              </button>
+            </div>
+
+            {/* File Upload */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select CSV File
+              </label>
+              <div className="flex items-center gap-4">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="btn-secondary flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  Choose File
+                </button>
+                {importFile && (
+                  <span className="text-sm text-gray-600">
+                    {importFile.name} ({(importFile.size / 1024).toFixed(1)} KB)
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Error Message */}
+            {importError && (
+              <div className="mb-6 p-4 bg-red-50 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-red-800">Import Error</h4>
+                    <pre className="text-sm text-red-700 whitespace-pre-wrap mt-1">{importError}</pre>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Success Result */}
+            {importResult && (
+              <div className="mb-6 p-4 bg-green-50 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-green-800">Import Successful!</h4>
+                    <p className="text-sm text-green-700 mt-1">
+                      {importResult.created} products imported successfully
+                      {importResult.failed > 0 && `, ${importResult.failed} failed`}
+                    </p>
+                    {importResult.failedProducts?.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-sm font-medium text-red-700">Failed items:</p>
+                        <ul className="text-sm text-red-600 list-disc list-inside">
+                          {importResult.failedProducts.map((item, idx) => (
+                            <li key={idx}>Row {item.row}: {item.name} - {item.error}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex justify-end space-x-3 pt-4 border-t">
+              <button
+                type="button"
+                onClick={closeImportModal}
+                className="btn-secondary"
+              >
+                {importResult ? 'Close' : 'Cancel'}
+              </button>
+              {!importResult && (
+                <button
+                  type="button"
+                  onClick={handleImportSubmit}
+                  disabled={!importFile || importLoading}
+                  className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {importLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      Import Products
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

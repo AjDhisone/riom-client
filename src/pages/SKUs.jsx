@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import { Plus, Search, Edit3, Trash2, Tags, Barcode, X, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const createInitialForm = () => ({
   productId: '',
@@ -71,7 +72,7 @@ function SKUs() {
       // Deduplicate products by name (case-insensitive)
       const uniqueProducts = []
       const seenNames = new Set()
-      
+
       allProducts.forEach((product) => {
         if (!product?.name) {
           return
@@ -373,15 +374,16 @@ function SKUs() {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">SKUs</h1>
-          <p className="text-gray-600 mt-1">Manage product variants and SKUs</p>
+          <h1 className="text-3xl font-bold text-slate-900">SKUs</h1>
+          <p className="text-slate-500 mt-1">Manage product variants and SKUs</p>
         </div>
         {canManageSKUs && (
-          <button onClick={() => openModal()} className="btn-primary">
-            + Add SKU
+          <button onClick={() => openModal()} className="btn-primary flex items-center gap-2">
+            <Plus className="w-5 h-5" />
+            Add SKU
           </button>
         )}
       </div>
@@ -434,8 +436,10 @@ function SKUs() {
         )}
 
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-200 border-t-indigo-600 mb-4"></div>
+            <p className="text-slate-600 font-medium">Preparing your SKUs...</p>
+            <p className="text-slate-400 text-sm mt-1">Getting everything ready for you</p>
           </div>
         ) : (
           <>
@@ -731,7 +735,7 @@ function SKUs() {
                   className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={saving}
                 >
-                  {saving ? 'Creating...' : 'Create SKU'}
+                  {saving ? (editingSku ? 'Updating...' : 'Creating...') : (editingSku ? 'Update SKU' : 'Create SKU')}
                 </button>
               </div>
             </form>

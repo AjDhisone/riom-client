@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import { Settings as SettingsIcon, Globe, Save, RotateCcw } from 'lucide-react'
 
 const currencyOptions = [
   { value: 'INR', label: 'Indian Rupee (INR)' },
@@ -84,16 +85,17 @@ function Settings() {
   }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-600 mt-1">Configure your system preferences</p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-slate-900">Settings</h1>
+        <p className="text-slate-500 mt-1">Configure your system preferences</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-1">
           <div className="card">
-            <button className="w-full text-left px-4 py-3 rounded-lg bg-primary-50 text-primary-700 font-medium">
+            <button className="w-full text-left px-4 py-3 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 text-white font-medium flex items-center gap-3 shadow-md">
+              <Globe className="w-5 h-5" />
               General
             </button>
           </div>
@@ -122,8 +124,10 @@ function Settings() {
             )}
 
             {loading ? (
-              <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-200 border-t-indigo-600 mb-4"></div>
+                <p className="text-slate-600 font-medium">Loading your preferences...</p>
+                <p className="text-slate-400 text-sm mt-1">Almost there!</p>
               </div>
             ) : (
               <form onSubmit={handleSubmit} className="space-y-6">

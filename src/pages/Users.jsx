@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
+import { UserPlus, Search, Edit3, Key, Users as UsersIcon, Shield, User, Trash2 } from 'lucide-react'
 
 function Users() {
   const [users, setUsers] = useState([])
@@ -19,6 +20,7 @@ function Users() {
     password: '',
     role: 'staff'
   })
+  const [deleteConfirm, setDeleteConfirm] = useState({ show: false, userId: null, userName: '' })
 
   useEffect(() => {
     fetchUsers()
@@ -113,7 +115,7 @@ function Users() {
       } else if (modalType === 'role') {
         // Update user role
         await api.put(`/users/${editingUser._id}/role`, { role: formData.role })
-        setUsers(prev => prev.map(u => 
+        setUsers(prev => prev.map(u =>
           u._id === editingUser._id ? { ...u, role: formData.role } : u
         ))
       } else {
@@ -131,6 +133,25 @@ function Users() {
     }
   }
 
+  const handleDeleteUser = (userId, userName) => {
+    setDeleteConfirm({ show: true, userId, userName })
+  }
+
+  const confirmDeleteUser = async () => {
+    const { userId } = deleteConfirm
+    try {
+      await api.delete(`/users/${userId}`)
+      setUsers(prev => prev.filter(u => u._id !== userId))
+      setDeleteConfirm({ show: false, userId: null, userName: '' })
+      // Refresh to update pagination
+      fetchUsers()
+    } catch (error) {
+      console.error('Error deleting user:', error)
+      alert(error.response?.data?.message || 'Failed to delete user')
+      setDeleteConfirm({ show: false, userId: null, userName: '' })
+    }
+  }
+
   const formatDate = (dateString) => {
     if (!dateString) return 'Never'
     return new Date(dateString).toLocaleDateString()
@@ -138,21 +159,26 @@ function Users() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-200 border-t-indigo-600 mb-4"></div>
+        <p className="text-slate-600 font-medium">Loading team members...</p>
+        <p className="text-slate-400 text-sm mt-1">Fetching user data</p>
       </div>
     )
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Users</h1>
-          <p className="text-gray-600 mt-1">Manage user accounts and permissions</p>
+          <h1 className="text-3xl font-bold text-slate-900">Users</h1>
+          <p className="text-slate-500 mt-1">Manage user accounts and permissions</p>
         </div>
         {currentUser?.role === 'admin' && (
-          <button onClick={openAddModal} className="btn-primary">+ Add User</button>
+          <button onClick={openAddModal} className="btn-primary flex items-center gap-2">
+            <UserPlus className="w-5 h-5" />
+            Add User
+          </button>
         )}
       </div>
 
@@ -165,8 +191,8 @@ function Users() {
             onChange={handleSearch}
             className="input-field max-w-md"
           />
-          <select 
-            value={roleFilter} 
+          <select
+            value={roleFilter}
             onChange={handleRoleFilter}
             className="input-field w-48"
           >
@@ -217,13 +243,12 @@ function Users() {
                       <div className="text-sm text-gray-600">{user.email}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        user.role === 'admin' 
-                          ? 'bg-purple-100 text-purple-700' 
-                          : user.role === 'manager'
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${user.role === 'admin'
+                        ? 'bg-purple-100 text-purple-700'
+                        : user.role === 'manager'
                           ? 'bg-green-100 text-green-700'
                           : 'bg-blue-100 text-blue-700'
-                      }`}>
+                        }`}>
                         {user.role}
                       </span>
                     </td>
@@ -241,10 +266,18 @@ function Users() {
                         </button>
                         <button
                           onClick={() => openPasswordModal(user)}
-                          className="text-orange-600 hover:text-orange-900"
+                          className="text-orange-600 hover:text-orange-900 mr-3"
                         >
                           Reset Password
                         </button>
+                        {user._id !== currentUser._id && (
+                          <button
+                            onClick={() => handleDeleteUser(user._id, user.name)}
+                            className="text-rose-600 hover:text-rose-900"
+                          >
+                            Delete
+                          </button>
+                        )}
                       </td>
                     )}
                   </tr>
@@ -395,6 +428,43 @@ function Users() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center">
+                <Trash2 className="w-6 h-6 text-rose-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Delete User</h2>
+                <p className="text-slate-500 text-sm">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-slate-700 mb-6">
+              Are you sure you want to delete user <strong>"{deleteConfirm.userName}"</strong>?
+              All associated data will be permanently removed.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm({ show: false, userId: null, userName: '' })}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteUser}
+                className="px-5 py-2.5 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-all duration-300 font-semibold shadow-md"
+              >
+                Delete User
+              </button>
+            </div>
           </div>
         </div>
       )}

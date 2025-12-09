@@ -25,10 +25,11 @@ function ProtectedRoute() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex items-center justify-center h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <div className="animate-spin rounded-full h-14 w-14 border-4 border-indigo-200 border-t-indigo-600 mx-auto mb-6"></div>
+          <h2 className="text-xl font-semibold text-slate-800 mb-2">Setting things up...</h2>
+          <p className="text-slate-500">Getting your workspace ready</p>
         </div>
       </div>
     )
