@@ -106,11 +106,26 @@ function Login() {
 
           <div className="mt-8 pt-6 border-t border-slate-200">
             <div className="text-center">
-              <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-2">Demo Credentials</p>
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 rounded-lg">
-                <code className="text-sm text-slate-700">admin@riom.com</code>
-                <span className="text-slate-300">/</span>
-                <code className="text-sm text-slate-700">admin123</code>
+              <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-3">Demo Credentials</p>
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-50 rounded-lg w-full justify-center">
+                  <span className="text-xs font-semibold text-indigo-600 w-16">Admin</span>
+                  <code className="text-sm text-slate-700">admin@riom.com</code>
+                  <span className="text-slate-300">/</span>
+                  <code className="text-sm text-slate-700">123456</code>
+                </div>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-lg w-full justify-center">
+                  <span className="text-xs font-semibold text-emerald-600 w-16">Manager</span>
+                  <code className="text-sm text-slate-700">manager@riom.com</code>
+                  <span className="text-slate-300">/</span>
+                  <code className="text-sm text-slate-700">123456</code>
+                </div>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 rounded-lg w-full justify-center">
+                  <span className="text-xs font-semibold text-amber-600 w-16">Staff</span>
+                  <code className="text-sm text-slate-700">staff@riom.com</code>
+                  <span className="text-slate-300">/</span>
+                  <code className="text-sm text-slate-700">123456</code>
+                </div>
               </div>
             </div>
           </div>

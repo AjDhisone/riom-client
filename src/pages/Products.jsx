@@ -36,7 +36,8 @@ function Products() {
     basePrice: 0,
     currentStock: 0,
     initialStock: 0,
-    attributes: {}
+    attributes: {},
+    createSku: false
   })
 
   const formatCurrency = (value) => {
@@ -225,7 +226,8 @@ function Products() {
       basePrice: 0,
       currentStock: 0,
       initialStock: 0,
-      attributes: {}
+      attributes: {},
+      createSku: false
     })
     setShowModal(true)
   }
@@ -240,7 +242,8 @@ function Products() {
       basePrice: typeof product.basePrice === 'number' ? product.basePrice : 0,
       currentStock: typeof product.totalStock === 'number' ? product.totalStock : 0,
       initialStock: 0,
-      attributes: {}
+      attributes: {},
+      hasSkus: (product.skuCount || 0) > 0
     })
     setShowModal(true)
   }
@@ -289,7 +292,7 @@ function Products() {
           }
         }
 
-        if (formData.currentStock != null) {
+        if (formData.hasSkus && formData.currentStock != null) {
           try {
             await syncProductStockToSkus(editingProduct._id, Number(formData.currentStock))
           } catch (error) {
@@ -297,6 +300,7 @@ function Products() {
           }
         }
       } else {
+        // Always create a default SKU with initialStock
         const initialStockValue = Number(formData.initialStock ?? 0)
         if (!Number.isFinite(initialStockValue) || initialStockValue < 0) {
           alert('Initial stock must be a non-negative number')
@@ -494,11 +498,6 @@ Running Shoes,Footwear,89.99,Lightweight running shoes,8,60`
           </div>
         )}
 
-        {!authLoading && !canManageProducts && (
-          <div className="mb-4 rounded-md bg-yellow-50 p-4 text-sm text-yellow-800">
-            You need admin or manager permissions to create or update products.
-          </div>
-        )}
 
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16">
@@ -569,19 +568,25 @@ Running Shoes,Footwear,89.99,Lightweight running shoes,8,60`
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => openEditModal(product)}
-                            className="text-primary-600 hover:text-primary-900 mr-4"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDelete(product._id)}
-                            className="text-red-600 hover:text-red-900"
-                            title="Archive product"
-                          >
-                            Archive
-                          </button>
+                          {canManageProducts && product.isActive !== false ? (
+                            <>
+                              <button
+                                onClick={() => openEditModal(product)}
+                                className="text-primary-600 hover:text-primary-900 mr-4"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDelete(product._id)}
+                                className="text-red-600 hover:text-red-900"
+                                title="Archive product"
+                              >
+                                Archive
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -667,7 +672,7 @@ Running Shoes,Footwear,89.99,Lightweight running shoes,8,60`
                   {editingProduct ? (
                     <>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Current Stock *
+                        Current Stock
                       </label>
                       <input
                         type="number"
@@ -675,16 +680,23 @@ Running Shoes,Footwear,89.99,Lightweight running shoes,8,60`
                         value={formData.currentStock ?? 0}
                         onChange={handleInputChange}
                         min="0"
-                        className="input-field"
+                        className={`input-field ${!formData.hasSkus ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                        disabled={!formData.hasSkus}
                       />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Updates the default SKU stock.
-                      </p>
+                      {formData.hasSkus ? (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Updates the SKU stock for this product.
+                        </p>
+                      ) : (
+                        <p className="text-xs text-amber-600 mt-1">
+                          No SKUs exist for this product. Create a SKU from the SKUs page to manage stock.
+                        </p>
+                      )}
                     </>
                   ) : (
                     <>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Initial Stock
+                        Initial Stock *
                       </label>
                       <input
                         type="number"
@@ -692,10 +704,11 @@ Running Shoes,Footwear,89.99,Lightweight running shoes,8,60`
                         value={formData.initialStock}
                         onChange={handleInputChange}
                         min="0"
+                        required
                         className="input-field"
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        We will create the first SKU with this starting quantity.
+                        A default SKU will be created with this stock quantity.
                       </p>
                     </>
                   )}

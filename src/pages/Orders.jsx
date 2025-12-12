@@ -200,6 +200,25 @@ function Orders() {
     return map
   }, [products])
 
+  // Calculate order total preview in real-time
+  const orderTotalPreview = useMemo(() => {
+    let subtotal = 0
+    formData.items.forEach((item) => {
+      if (item.skuId) {
+        const sku = skuLookup.get(item.skuId)
+        if (sku && sku.price) {
+          subtotal += Number(sku.price) * (Number(item.quantity) || 1)
+        }
+      }
+    })
+    const taxAmount = formData.tax ? Number(formData.tax) : 0
+    return {
+      subtotal,
+      tax: taxAmount,
+      total: subtotal + taxAmount,
+    }
+  }, [formData.items, formData.tax, skuLookup])
+
   const formatCurrency = (value) => {
     const amount = Number(value)
     if (!Number.isFinite(amount)) {
@@ -621,8 +640,8 @@ function Orders() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 w-full max-w-2xl my-8 max-h-[90vh] overflow-y-auto">
             <h2 className="text-2xl font-bold mb-4">Create New Order</h2>
 
             {modalError && (
@@ -766,6 +785,25 @@ function Orders() {
                     placeholder="Optional"
                     disabled={saving}
                   />
+                </div>
+              </div>
+
+              {/* Order Total Preview */}
+              <div className="bg-gradient-to-r from-indigo-50 to-violet-50 rounded-lg p-4 border border-indigo-100">
+                <h3 className="text-lg font-semibold mb-3 text-indigo-900">Order Summary</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Subtotal</span>
+                    <span className="font-medium text-slate-900">{formatCurrency(orderTotalPreview.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Tax</span>
+                    <span className="font-medium text-slate-900">{formatCurrency(orderTotalPreview.tax)}</span>
+                  </div>
+                  <div className="flex justify-between pt-2 border-t border-indigo-200">
+                    <span className="text-lg font-bold text-indigo-900">Total</span>
+                    <span className="text-lg font-bold text-indigo-600">{formatCurrency(orderTotalPreview.total)}</span>
+                  </div>
                 </div>
               </div>
 
